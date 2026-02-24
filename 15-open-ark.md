@@ -222,9 +222,10 @@ Once all users have signed the new vtxo-tree, the initialization moves to the st
 ##### Start Preparation state
 The goal of this substate is to fund the round.
 
-This state starts with the ASP broadcasting the `new_round_prepare_start` message. 
+This state starts with the ASP broadcasting the `new_round_prepare_start` message.
+The normative tag requirements for this message are specified in NIP-150 (`new_round_prepare_start`); the message is a trigger/binding event and carries no semantic content payload (`content` is empty).
 
-After which users respond with a `new_round_start_prepared` where they sign:
+After which users respond with a `new_round_start_prepared` where they provide signatures keyed by outpoint (`txid:vout`) for:
 - the forfeit transactions
 - the cooperative recycling transaction
 - any onboarding transactions. 
@@ -842,7 +843,7 @@ Alice, Bob, Carol, and Eve verify the proposal and return their signatures via `
 
 ##### Phase 4: Round 2 Initiated -- Start Preparation
 
-Steve sends `new_round_prepare_start`. Each active user responds with `new_round_start_prepared`, signing:
+Steve sends `new_round_prepare_start`. Each active user responds with `new_round_start_prepared`, signing by outpoint (`txid:vout`):
 - The **forfeit transactions** (binding their old Round 1 VTXOs to Round 2).
 - The **cooperative recycle transaction** (enabling Dave's fund recovery).
 - Any **onboarding transactions** (Eve's new input).

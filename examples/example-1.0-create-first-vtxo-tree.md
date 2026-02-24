@@ -54,26 +54,26 @@ sequenceDiagram
     R-->>D: proposal
     R-->>E: proposal
 
-    A->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=initiate_id, sigs)
-    B->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=initiate_id, sigs)
-    C->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=initiate_id, sigs)
-    D->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=initiate_id, sigs)
-    E->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=initiate_id, sigs)
+    A->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=root(initiate_id), e=reply(proposal_id), sigs by outpoint)
+    B->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=root(initiate_id), e=reply(proposal_id), sigs by outpoint)
+    C->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=root(initiate_id), e=reply(proposal_id), sigs by outpoint)
+    D->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=root(initiate_id), e=reply(proposal_id), sigs by outpoint)
+    E->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=root(initiate_id), e=reply(proposal_id), sigs by outpoint)
     R-->>S: deliver accept events
 
     Note over S,R: Start Preparation phase
-    S->>R: new_round_prepare_start (t=new_round_prepare_start, v=1.0.0, e=initiate_id)
+    S->>R: new_round_prepare_start (t=new_round_prepare_start, v=1.0.0, e=root(initiate_id), e=reply(proposal_id), content="")
     R-->>A: prepare
     R-->>B: prepare
     R-->>C: prepare
     R-->>D: prepare
     R-->>E: prepare
 
-    A->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=initiate_id, sigs)
-    B->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=initiate_id, sigs)
-    C->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=initiate_id, sigs)
-    D->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=initiate_id, sigs)
-    E->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=initiate_id, sigs)
+    A->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=root(initiate_id), e=reply(prepare_id), sigs by outpoint)
+    B->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=root(initiate_id), e=reply(prepare_id), sigs by outpoint)
+    C->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=root(initiate_id), e=reply(prepare_id), sigs by outpoint)
+    D->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=root(initiate_id), e=reply(prepare_id), sigs by outpoint)
+    E->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=root(initiate_id), e=reply(prepare_id), sigs by outpoint)
     R-->>S: deliver prepared events
 
     Note over S,R: Round Activation phase
@@ -124,10 +124,10 @@ sequenceDiagram
 ### Step 4 -- [`new_round_vtxo_tree_accept`](../nip-150.md#new_round_vtxo_tree_accept) (Phase: Tree Proposal)
 
 - **Publisher:** Alice, Bob, Carol, Dave, Eve
-- **Transport:** Nostr event `kind:150`, tags `["t","new_round_vtxo_tree_accept"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
+- **Transport:** Nostr event `kind:150`, tags `["t","new_round_vtxo_tree_accept"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>","","root"]`, `["e","<new_round_vtxo_tree_proposal_event_id>","","reply"]`
 - **Audience (scenario):** Steve (ASP)
 - **Preconditions (scenario):** Each user has validated proposal contents for expected funds and constraints.
-- **Scenario payload values:** `vtxo_tree_signatures=<user_sig_set_for_tree_and_related_txs>`
+- **Scenario payload values:** `vtxo_tree_signatures={"<txid:vout>":"<base64_signature>", ...}`
 - **Expected outcome:** ASP collects required user signatures to advance to start preparation.
 - **Failure/timeout branch:** If signatures are missing or invalid by timeout, Steve does not transition this participant set to start preparation.
 - **Spec refs:** [15-open-ark.md §7.1.1](../15-open-ark.md#711-initiated-state), [nip-150.md `new_round_vtxo_tree_accept`](../nip-150.md#new_round_vtxo_tree_accept)
@@ -137,10 +137,10 @@ sequenceDiagram
 ### Step 5 -- [`new_round_prepare_start`](../nip-150.md#new_round_prepare_start) (Phase: Start Preparation)
 
 - **Publisher:** Steve (ASP)
-- **Transport:** Nostr event `kind:150`, tags `["t","new_round_prepare_start"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
+- **Transport:** Nostr event `kind:150`, tags `["t","new_round_prepare_start"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>","","root"]`, `["e","<new_round_vtxo_tree_proposal_event_id>","","reply"]`
 - **Audience (scenario):** Alice, Bob, Carol, Dave, Eve
 - **Preconditions (scenario):** Tree proposal accepted by participating users.
-- **Scenario payload values:** proposed root binding package `root_id="root_r_2026_02_24_001"` with required forfeit/recycle/onboarding signature requests
+- **Scenario payload values:** `content=""` (message is trigger/binding only; no new payload fields)
 - **Expected outcome:** Users can provide final signatures needed before activation.
 - **Failure/timeout branch:** If a user cannot validate this package, they do not send `new_round_start_prepared`, and collaborative start is blocked for that set.
 - **Spec refs:** [15-open-ark.md §7.1.1](../15-open-ark.md#711-initiated-state), [nip-150.md `new_round_prepare_start`](../nip-150.md#new_round_prepare_start)
@@ -148,10 +148,10 @@ sequenceDiagram
 ### Step 6 -- [`new_round_start_prepared`](../nip-150.md#new_round_start_prepared) (Phase: Start Preparation)
 
 - **Publisher:** Alice, Bob, Carol, Dave, Eve
-- **Transport:** Nostr event `kind:150`, tags `["t","new_round_start_prepared"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
+- **Transport:** Nostr event `kind:150`, tags `["t","new_round_start_prepared"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>","","root"]`, `["e","<new_round_prepare_start_event_id>","","reply"]`
 - **Audience (scenario):** Steve (ASP)
 - **Preconditions (scenario):** Users have validated final pre-start data.
-- **Scenario payload values:** `funding_signatures`, `forfeit_signatures`, `recycle_signature` for `root_r_2026_02_24_001`
+- **Scenario payload values:** `funding_signatures={"<txid:vout>":"<base64_sig>"}`, `forfeit_signatures={"<txid:vout>":"<base64_sig>"}`, `recycle_signature=<base64_sig>`
 - **Expected outcome:** ASP has all required preparation signatures.
 - **Failure/timeout branch:** Missing any required signature by timeout prevents Steve from issuing `new_round_start` for this participant set.
 - **Spec refs:** [15-open-ark.md §7.1.1](../15-open-ark.md#711-initiated-state), [nip-150.md `new_round_start_prepared`](../nip-150.md#new_round_start_prepared)
