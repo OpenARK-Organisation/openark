@@ -177,17 +177,17 @@ stateDiagram-v2
 
 #### 7.1.1 Initiated state
 
-This state has in turn three sub-states: invite, confirm, and fund.
+This state has in turn three sub-states: round announcement, tree proposal, and start preparation.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Invite
-    Invite --> Confirm: min_timeout reached and all users responded or max_timeout reached
-    Confirm --> Fund: vtxo-tree signed
-    Fund --> [*]: vtxo-root broadcast
+    [*] --> RoundAnnouncement
+    RoundAnnouncement --> TreeProposal: min_timeout reached and all users responded or max_timeout reached
+    TreeProposal --> StartPreparation: vtxo-tree signed
+    StartPreparation --> [*]: vtxo-root broadcast
 ```
 
-##### Invite state
+##### Round Announcement state
 The goal of this substate is to invite users to join the round.
 
 This substate starts with the ASP announces a new round using the `new_round_initiate` message, inviting users to join.
@@ -199,10 +199,10 @@ They do so by responding with a `new_round_join` message, containing:
 The default is that all funds in the previous round are onboarded. If several users need to agree to on-board funds, perhaps because of  
 a shared vtxo, then all users MUST agree to onboard for the vtxo to be included. 
 
-The ASP then waits for either the min_timeout is reached and all users that are tagged have responded, or if the max_timeout is reached. 
-Once this happens, the initialization is moved to the confirm substate. 
+The ASP then waits for either the min_timeout is reached and all users that are tagged have responded, or if the max_timeout is reached.
+Once this happens, the initialization moves to the tree proposal substate.
 
-##### Confirm state
+##### Tree Proposal state
 The goal of this substate is to finalize the vtxo-tree including the users signatures. 
 
 This state starts with the ASP broadcasting the `new_round_vtxo_tree_proposal` message, containing:
@@ -212,9 +212,9 @@ This state starts with the ASP broadcasting the `new_round_vtxo_tree_proposal` m
 - cooperative recycle transaction
 
 Users verify these transactions and return their signatures on the new vtxo-tree using the `new_round_vtxo_tree_accept` message.
-Once all users have signed the new vtxo-tree, the initialization moves to the fund substate.
+Once all users have signed the new vtxo-tree, the initialization moves to the start preparation substate.
 
-##### Fund state
+##### Start Preparation state
 The goal of this substate is to fund the round.
 
 This state starts with the ASP broadcasting the `new_round_prepare_start` message. 
@@ -591,7 +591,7 @@ sequenceDiagram
     Steve->>Dave: round_closed
     Steve->>Eve: round_closed
 
-    Note over Steve,Eve: Round 2 Initiated state - Invite substate
+    Note over Steve,Eve: Round 2 Initiated state - Round Announcement substate
     Steve->>Alice: new_round_initiate
     Steve->>Bob: new_round_initiate
     Steve->>Carol: new_round_initiate
@@ -607,7 +607,7 @@ sequenceDiagram
     Eve->>Steve: new_round_join (transfer all + onboard 0.4 BTC)
     Note right of Dave: Dave offline (no response)
 
-    Note over Steve,Eve: Round 2 Initiated state - Confirm substate 
+    Note over Steve,Eve: Round 2 Initiated state - Tree Proposal substate
     Note right of Dave:
     Steve->>Alice: new_round_vtxo_tree_proposal
     Steve->>Bob: new_round_vtxo_tree_proposal
@@ -619,7 +619,7 @@ sequenceDiagram
     Carol->>Steve: new_round_vtxo_tree_accept
     Eve->>Steve: new_round_vtxo_tree_accept
 
-    Note over Steve,Eve: Round 2 Initiated state - Fund substate
+    Note over Steve,Eve: Round 2 Initiated state - Start Preparation substate
     Steve->>Alice: new_round_prepare_start
     Steve->>Bob: new_round_prepare_start
     Steve->>Carol: new_round_prepare_start
@@ -767,10 +767,10 @@ stateDiagram-v2
     }
 
     state "Round N+1 (VTXO-Tree B)" as RoundN1 {
-        [*] --> B_Invite: new_round_initiate
-        B_Invite --> B_Confirm: users respond / timeout
-        B_Confirm --> B_Fund: vtxo-tree signed
-        B_Fund --> B_Started: vtxo-root broadcast
+        [*] --> B_RoundAnnouncement: new_round_initiate
+        B_RoundAnnouncement --> B_TreeProposal: users respond / timeout
+        B_TreeProposal --> B_StartPreparation: vtxo-tree signed
+        B_StartPreparation --> B_Started: vtxo-root broadcast
         B_Started --> B_Closed: closing block reached
     }
 
@@ -784,9 +784,9 @@ stateDiagram-v2
         [*] --> UnilateralRecycle: recycle block reached
     }
 
-    A_Closed --> B_Invite: triggers new round
+    A_Closed --> B_RoundAnnouncement: triggers new round
     A_Closed --> Forfeit: binds old VTXOs
-    Forfeit --> B_Fund: atomically linked to new vtxo-root
+    Forfeit --> B_StartPreparation: atomically linked to new vtxo-root
     A_Closed --> Recycle: handles offline users
     Recycle --> A_Recycled: funds recovered
 ```
@@ -803,7 +803,7 @@ When the closing block is mined, Steve broadcasts `round_closed`. All outstandin
 
 At this point, Round 1's VTXO-tree is frozen but remains on-chain valid -- users can unilaterally exit at any time by broadcasting their VTXO path from leaf to root.
 
-##### Phase 2: Round 2 Initiated -- Invite
+##### Phase 2: Round 2 Initiated -- Round Announcement
 
 Steve broadcasts `new_round_initiate` to all users and requests funding from Victoria (XLP) via `new_round_funding_request`. Users declare their intentions:
 
@@ -817,7 +817,7 @@ Steve broadcasts `new_round_initiate` to all users and requests funding from Vic
 
 Dave's silence is handled gracefully -- his capital remains in Round 1's VTXO-tree and will be recovered via the recycle path.
 
-##### Phase 3: Round 2 Initiated -- Confirm
+##### Phase 3: Round 2 Initiated -- Tree Proposal
 
 Steve constructs the new round's vtxo-root transaction containing:
 
@@ -833,7 +833,7 @@ Steve also constructs:
 
 Alice, Bob, Carol, and Eve verify the proposal and return their signatures via `new_round_vtxo_tree_accept`.
 
-##### Phase 4: Round 2 Initiated -- Fund
+##### Phase 4: Round 2 Initiated -- Start Preparation
 
 Steve sends `new_round_prepare_start`. Each active user responds with `new_round_start_prepared`, signing:
 - The **forfeit transactions** (binding their old Round 1 VTXOs to Round 2).
@@ -842,7 +842,7 @@ Steve sends `new_round_prepare_start`. Each active user responds with `new_round
 
 Once all signatures are collected, Steve signs and broadcasts the new vtxo-root on-chain.
 
-##### Phase 5: Round 2 Started -- Two Trees Coexist
+##### Phase 5: Round 2 Started -- Round Activation
 
 Steve broadcasts `new_round_start`. Round 2's VTXO-tree is now active. Alice, Bob, Carol, and Eve can transact off-chain via HTLCs.
 
