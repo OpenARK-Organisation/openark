@@ -16,58 +16,66 @@ In this part of the example, the users join a new ARK round run by Steve.
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Steve as Steve (ASP)
-    participant Alice as Alice (User)
-    participant Bob as Bob (User)
-    participant Carol as Carol (User)
-    participant Dave as Dave (User)
-    participant Eve as Eve (User)
+    participant S as Steve (ASP)
+    participant R as Nostr Relay
+    participant A as Alice (User)
+    participant B as Bob (User)
+    participant C as Carol (User)
+    participant D as Dave (User)
+    participant E as Eve (User)
 
-    Note over Steve,Eve: Invite state
-    Steve->>Alice: new_round_initiate (round_id, params)
-    Steve->>Bob: new_round_initiate (round_id, params)
-    Steve->>Carol: new_round_initiate (round_id, params)
-    Steve->>Dave: new_round_initiate (round_id, params)
-    Steve->>Eve: new_round_initiate (round_id, params)
+    Note over S,R: Invite phase
+    S->>R: new_round_initiate (kind:150, t=new_round_initiate, round_id, params)
+    R-->>A: deliver event
+    R-->>B: deliver event
+    R-->>C: deliver event
+    R-->>D: deliver event
+    R-->>E: deliver event
 
-    Alice->>Steve: new_round_join (onboard/offboard/transition)
-    Bob->>Steve: new_round_join (onboard/offboard/transition)
-    Carol->>Steve: new_round_join (onboard/offboard/transition)
-    Dave->>Steve: new_round_join (onboard/offboard/transition)
-    Eve->>Steve: new_round_join (onboard/offboard/transition)
+    A->>R: new_round_join (kind:150, t=new_round_join, intents)
+    B->>R: new_round_join (kind:150, t=new_round_join, intents)
+    C->>R: new_round_join (kind:150, t=new_round_join, intents)
+    D->>R: new_round_join (kind:150, t=new_round_join, intents)
+    E->>R: new_round_join (kind:150, t=new_round_join, intents)
+    R-->>S: deliver join events
 
-    Note over Steve,Eve: Confirm state
-    Steve->>Alice: new_round_vtxo_tree_proposal (vtxo-tree, forfeit-tree, recycle txs)
-    Steve->>Bob: new_round_vtxo_tree_proposal (vtxo-tree, forfeit-tree, recycle txs)
-    Steve->>Carol: new_round_vtxo_tree_proposal (vtxo-tree, forfeit-tree, recycle txs)
-    Steve->>Dave: new_round_vtxo_tree_proposal (vtxo-tree, forfeit-tree, recycle txs)
-    Steve->>Eve: new_round_vtxo_tree_proposal (vtxo-tree, forfeit-tree, recycle txs)
+    Note over S,R: Confirm phase
+    S->>R: new_round_vtxo_tree_proposal (t=new_round_vtxo_tree_proposal)
+    R-->>A: proposal
+    R-->>B: proposal
+    R-->>C: proposal
+    R-->>D: proposal
+    R-->>E: proposal
 
-    Alice->>Steve: new_round_vtxo_tree_accept (signatures)
-    Bob->>Steve: new_round_vtxo_tree_accept (signatures)
-    Carol->>Steve: new_round_vtxo_tree_accept (signatures)
-    Dave->>Steve: new_round_vtxo_tree_accept (signatures)
-    Eve->>Steve: new_round_vtxo_tree_accept (signatures)
+    A->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, sigs)
+    B->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, sigs)
+    C->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, sigs)
+    D->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, sigs)
+    E->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, sigs)
+    R-->>S: deliver accept events
 
-    Note over Steve,Eve: Fund state
-    Steve->>Alice: new_round_prepare_start
-    Steve->>Bob: new_round_prepare_start
-    Steve->>Carol: new_round_prepare_start
-    Steve->>Dave: new_round_prepare_start
-    Steve->>Eve: new_round_prepare_start
+    Note over S,R: Fund phase
+    S->>R: new_round_prepare_start (t=new_round_prepare_start)
+    R-->>A: prepare
+    R-->>B: prepare
+    R-->>C: prepare
+    R-->>D: prepare
+    R-->>E: prepare
 
-    Alice->>Steve: new_round_start_prepared (signatures: forfeit/recycle/onboarding)
-    Bob->>Steve: new_round_start_prepared (signatures: forfeit/recycle/onboarding)
-    Carol->>Steve: new_round_start_prepared (signatures: forfeit/recycle/onboarding)
-    Dave->>Steve: new_round_start_prepared (signatures: forfeit/recycle/onboarding)
-    Eve->>Steve: new_round_start_prepared (signatures: forfeit/recycle/onboarding)
+    A->>R: new_round_start_prepared (t=new_round_start_prepared, sigs)
+    B->>R: new_round_start_prepared (t=new_round_start_prepared, sigs)
+    C->>R: new_round_start_prepared (t=new_round_start_prepared, sigs)
+    D->>R: new_round_start_prepared (t=new_round_start_prepared, sigs)
+    E->>R: new_round_start_prepared (t=new_round_start_prepared, sigs)
+    R-->>S: deliver prepared events
 
-    Note over Steve,Eve: Steve signs and broadcasts the VTXO root (on-chain), then announces round start
-    Steve->>Alice: new_round_start
-    Steve->>Bob: new_round_start
-    Steve->>Carol: new_round_start
-    Steve->>Dave: new_round_start
-    Steve->>Eve: new_round_start
+    Note over S: S signs and broadcasts VTXO root on-chain
+    S->>R: new_round_start (t=new_round_start, round_txid)
+    R-->>A: round started
+    R-->>B: round started
+    R-->>C: round started
+    R-->>D: round started
+    R-->>E: round started
 ```
 
 1. Steve issues `new_round_initiate`.
