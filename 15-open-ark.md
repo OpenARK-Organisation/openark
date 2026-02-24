@@ -192,6 +192,8 @@ The goal of this substate is to invite users to join the round.
 
 This substate starts with the ASP announces a new round using the `new_round_initiate` message, inviting users to join.
 
+`new_round_initiate` carries `closing_block` and `recycled_block` in its payload. This event id is the round thread root; subsequent lifecycle messages in this round MUST reference it using an `e` tag.
+
 They do so by responding with a `new_round_join` message, containing:
 - funds to onboard
 - funds to offboard
@@ -359,7 +361,9 @@ ARK messages are transported over Nostr events.
 
 Requirements:
 - Messages MUST be signed by the sender
-- Events MUST reference the round ID
+- Round message events MUST include `["t","<message_type>"]`
+- Round message events MUST include `["v","1.0.0"]`
+- The round reference MUST be the event id of `new_round_initiate`; follow-up round messages MUST include an `e` tag to that id
 - Relays MUST be treated as untrusted
 
 This document defers detailed encoding to a companion **NIP-150** specification.

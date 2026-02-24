@@ -8,7 +8,7 @@ In this part of the example, the users join a new ARK round run by Steve.
 
 - Protocol semantics and canonical roles: [15-open-ark.md](../15-open-ark.md)
 - Message definitions and event format: [nip-150.md](../nip-150.md)
-- Nostr transport model in this example: single relay multicast (`kind:150`, `tags` include `["t","<message_type>"]`)
+- Nostr transport model in this example: single relay multicast (`kind:150`, `tags` include `["t","<message_type>"]`, `["v","1.0.0"]`; follow-up round messages include `e=<new_round_initiate_event_id>`)
 - This example is illustrative, not a normative protocol definition.
 
 ### Actors in this scenario
@@ -32,53 +32,53 @@ sequenceDiagram
     participant E as Eve (User)
 
     Note over S,R: Round Announcement phase
-    S->>R: new_round_initiate (kind:150, t=new_round_initiate, round_id, params)
+    S->>R: new_round_initiate (kind:150, t=new_round_initiate, v=1.0.0, closing_block, recycled_block)
     R-->>A: deliver event
     R-->>B: deliver event
     R-->>C: deliver event
     R-->>D: deliver event
     R-->>E: deliver event
 
-    A->>R: new_round_join (kind:150, t=new_round_join, intents)
-    B->>R: new_round_join (kind:150, t=new_round_join, intents)
-    C->>R: new_round_join (kind:150, t=new_round_join, intents)
-    D->>R: new_round_join (kind:150, t=new_round_join, intents)
-    E->>R: new_round_join (kind:150, t=new_round_join, intents)
+    A->>R: new_round_join (kind:150, t=new_round_join, v=1.0.0, e=initiate_id, intents)
+    B->>R: new_round_join (kind:150, t=new_round_join, v=1.0.0, e=initiate_id, intents)
+    C->>R: new_round_join (kind:150, t=new_round_join, v=1.0.0, e=initiate_id, intents)
+    D->>R: new_round_join (kind:150, t=new_round_join, v=1.0.0, e=initiate_id, intents)
+    E->>R: new_round_join (kind:150, t=new_round_join, v=1.0.0, e=initiate_id, intents)
     R-->>S: deliver join events
 
     Note over S,R: Tree Proposal phase
-    S->>R: new_round_vtxo_tree_proposal (t=new_round_vtxo_tree_proposal)
+    S->>R: new_round_vtxo_tree_proposal (t=new_round_vtxo_tree_proposal, v=1.0.0, e=initiate_id)
     R-->>A: proposal
     R-->>B: proposal
     R-->>C: proposal
     R-->>D: proposal
     R-->>E: proposal
 
-    A->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, sigs)
-    B->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, sigs)
-    C->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, sigs)
-    D->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, sigs)
-    E->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, sigs)
+    A->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=initiate_id, sigs)
+    B->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=initiate_id, sigs)
+    C->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=initiate_id, sigs)
+    D->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=initiate_id, sigs)
+    E->>R: new_round_vtxo_tree_accept (t=new_round_vtxo_tree_accept, v=1.0.0, e=initiate_id, sigs)
     R-->>S: deliver accept events
 
     Note over S,R: Start Preparation phase
-    S->>R: new_round_prepare_start (t=new_round_prepare_start)
+    S->>R: new_round_prepare_start (t=new_round_prepare_start, v=1.0.0, e=initiate_id)
     R-->>A: prepare
     R-->>B: prepare
     R-->>C: prepare
     R-->>D: prepare
     R-->>E: prepare
 
-    A->>R: new_round_start_prepared (t=new_round_start_prepared, sigs)
-    B->>R: new_round_start_prepared (t=new_round_start_prepared, sigs)
-    C->>R: new_round_start_prepared (t=new_round_start_prepared, sigs)
-    D->>R: new_round_start_prepared (t=new_round_start_prepared, sigs)
-    E->>R: new_round_start_prepared (t=new_round_start_prepared, sigs)
+    A->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=initiate_id, sigs)
+    B->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=initiate_id, sigs)
+    C->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=initiate_id, sigs)
+    D->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=initiate_id, sigs)
+    E->>R: new_round_start_prepared (t=new_round_start_prepared, v=1.0.0, e=initiate_id, sigs)
     R-->>S: deliver prepared events
 
     Note over S,R: Round Activation phase
     Note over S: S signs and broadcasts VTXO root on-chain
-    S->>R: new_round_start (t=new_round_start, round_txid)
+    S->>R: new_round_start (t=new_round_start, v=1.0.0, e=initiate_id, round_txid)
     R-->>A: round started
     R-->>B: round started
     R-->>C: round started
@@ -89,10 +89,10 @@ sequenceDiagram
 ### Step 1 -- [`new_round_initiate`](../nip-150.md#new_round_initiate) (Phase: Round Announcement)
 
 - **Publisher:** Steve (ASP)
-- **Transport:** Nostr event `kind:150`, tag `["t","new_round_initiate"]`
+- **Transport:** Nostr event `kind:150`, tags `["t","new_round_initiate"]`, `["v","1.0.0"]`
 - **Audience (scenario):** Alice, Bob, Carol, Dave, Eve (via relay multicast)
 - **Preconditions (scenario):** Previous round is ready for participant announcement.
-- **Scenario payload values:** `round_id="r-2026-02-24-001"`, `close_block=910000`, `end_block=910144`
+- **Scenario payload values:** `closing_block=910000`, `recycled_block=910144`
 - **Expected outcome:** Users learn that a new round is open and can submit intentions.
 - **Failure/timeout branch:** A user that does not receive this event before the join window closes cannot submit `new_round_join` and is not included in this round.
 - **Spec refs:** [15-open-ark.md §7.1.1](../15-open-ark.md#711-initiated-state), [nip-150.md `new_round_initiate`](../nip-150.md#new_round_initiate)
@@ -100,9 +100,9 @@ sequenceDiagram
 ### Step 2 -- [`new_round_join`](../nip-150.md#new_round_join) (Phase: Round Announcement)
 
 - **Publisher:** Alice, Bob, Carol, Dave, Eve (each as User)
-- **Transport:** Nostr event `kind:150`, tag `["t","new_round_join"]`
+- **Transport:** Nostr event `kind:150`, tags `["t","new_round_join"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
 - **Audience (scenario):** Steve (ASP)
-- **Preconditions (scenario):** `new_round_initiate` received and validated for the current `round_id`.
+- **Preconditions (scenario):** `new_round_initiate` received and validated; the `new_round_initiate` event id is used as the round reference in the `e` tag.
 - **Scenario payload values:** Alice/Carol/Dave transfer all, Bob offboards `0 BTC` in this example, Eve onboards `0 BTC` in this example, plus `address_of_last_resort` and user/agent keys
 - **Expected outcome:** Steve has participant intentions and can construct the candidate tree.
 - **Failure/timeout branch:** If a user does not send `new_round_join` before timeout, Steve excludes that user from the new tree and handles their prior capital per close/recycle rules.
@@ -113,7 +113,7 @@ sequenceDiagram
 ### Step 3 -- [`new_round_vtxo_tree_proposal`](../nip-150.md#new_round_vtxo_tree_proposal) (Phase: Tree Proposal)
 
 - **Publisher:** Steve (ASP)
-- **Transport:** Nostr event `kind:150`, tag `["t","new_round_vtxo_tree_proposal"]`
+- **Transport:** Nostr event `kind:150`, tags `["t","new_round_vtxo_tree_proposal"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
 - **Audience (scenario):** Alice, Bob, Carol, Dave, Eve
 - **Preconditions (scenario):** Join collection complete for this round.
 - **Scenario payload values:** `vtxo_tree=<tree_r_2026_02_24_001>`, `forfeit_tree=<forfeit_r_2026_02_24_001>`, `recycle_transaction=<recycle_r_2026_02_24_001>`
@@ -124,7 +124,7 @@ sequenceDiagram
 ### Step 4 -- [`new_round_vtxo_tree_accept`](../nip-150.md#new_round_vtxo_tree_accept) (Phase: Tree Proposal)
 
 - **Publisher:** Alice, Bob, Carol, Dave, Eve
-- **Transport:** Nostr event `kind:150`, tag `["t","new_round_vtxo_tree_accept"]`
+- **Transport:** Nostr event `kind:150`, tags `["t","new_round_vtxo_tree_accept"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
 - **Audience (scenario):** Steve (ASP)
 - **Preconditions (scenario):** Each user has validated proposal contents for expected funds and constraints.
 - **Scenario payload values:** `vtxo_tree_signatures=<user_sig_set_for_tree_and_related_txs>`
@@ -137,7 +137,7 @@ sequenceDiagram
 ### Step 5 -- [`new_round_prepare_start`](../nip-150.md#new_round_prepare_start) (Phase: Start Preparation)
 
 - **Publisher:** Steve (ASP)
-- **Transport:** Nostr event `kind:150`, tag `["t","new_round_prepare_start"]`
+- **Transport:** Nostr event `kind:150`, tags `["t","new_round_prepare_start"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
 - **Audience (scenario):** Alice, Bob, Carol, Dave, Eve
 - **Preconditions (scenario):** Tree proposal accepted by participating users.
 - **Scenario payload values:** proposed root binding package `root_id="root_r_2026_02_24_001"` with required forfeit/recycle/onboarding signature requests
@@ -148,7 +148,7 @@ sequenceDiagram
 ### Step 6 -- [`new_round_start_prepared`](../nip-150.md#new_round_start_prepared) (Phase: Start Preparation)
 
 - **Publisher:** Alice, Bob, Carol, Dave, Eve
-- **Transport:** Nostr event `kind:150`, tag `["t","new_round_start_prepared"]`
+- **Transport:** Nostr event `kind:150`, tags `["t","new_round_start_prepared"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
 - **Audience (scenario):** Steve (ASP)
 - **Preconditions (scenario):** Users have validated final pre-start data.
 - **Scenario payload values:** `funding_signatures`, `forfeit_signatures`, `recycle_signature` for `root_r_2026_02_24_001`
@@ -161,7 +161,7 @@ sequenceDiagram
 ### Step 7 -- [`new_round_start`](../nip-150.md#new_round_start) (Phase: Round Activation)
 
 - **Publisher:** Steve (ASP)
-- **Transport:** Nostr event `kind:150`, tag `["t","new_round_start"]`
+- **Transport:** Nostr event `kind:150`, tags `["t","new_round_start"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
 - **Audience (scenario):** Alice, Bob, Carol, Dave, Eve
 - **Preconditions (scenario):** VTXO root signed and broadcast on-chain by ASP.
 - **Scenario payload values:** `round_txid="txid_root_r_2026_02_24_001"`
