@@ -103,9 +103,18 @@ sequenceDiagram
 - **Transport:** Nostr event `kind:150`, tags `["t","new_round_join"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
 - **Audience (scenario):** Steve (ASP)
 - **Preconditions (scenario):** `new_round_initiate` received and validated; the `new_round_initiate` event id is used as the round reference in the `e` tag.
-- **Scenario payload values:** Alice/Carol/Dave transfer all, Bob offboards `0 BTC` in this example, Eve onboards `0 BTC` in this example, plus `address_of_last_resort` and user/agent keys
-- **Expected outcome:** Steve has participant intentions and can construct the candidate tree.
-- **Failure/timeout branch:** If a user does not send `new_round_join` before timeout, Steve excludes that user from the new tree and handles their prior capital per close/recycle rules.
+- **Scenario payload values:**
+  - `onboard=[{"outpoint":"<alice_onchain_txid:0>"}]` (Alice)
+  - `onboard=[{"outpoint":"<bob_onchain_txid:0>"}]` (Bob)
+  - `onboard=[{"outpoint":"<carol_onchain_txid:0>"}]` (Carol)
+  - `onboard=[{"outpoint":"<dave_onchain_txid:0>"}]` (Dave)
+  - `onboard=[{"outpoint":"<eve_onchain_txid:0>"}]` (Eve)
+  - `offboard=[]` (all users in this scenario)
+  - `keys={"user_pubkey":"<hex-or-npub>","agent_pubkey":"<hex-or-npub>"}`
+  - optional `address_of_last_resort="<bitcoin_address>"`
+- **Scenario intent notes (not payload fields):** Each user onboards exactly 1 BTC from their own on-chain UTXO.
+- **Expected outcome:** Steve has all participant join intents and can build the candidate tree.
+- **Failure/timeout branch:** If a user does not send `new_round_join` before timeout, Steve excludes that user from this round and handles their prior capital per close/recycle rules.
 - **Spec refs:** [15-open-ark.md §7.1.1](../15-open-ark.md#711-initiated-state), [nip-150.md `new_round_join`](../nip-150.md#new_round_join)
 
 ![Tree Created](../exemple-1.0.1-tree-created.svg)
