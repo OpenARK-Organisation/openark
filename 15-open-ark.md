@@ -516,15 +516,19 @@ This design draws inspiration from Lightning, channel factories, and the ARK res
 
 - **Short roles**: A=Alice, B=Bob, C=Carol, D=Dave, E=Eve, S=Steve (ASP), V=Victoria (XLP)
 
-- **Users**: Alice, Bob, Carol, Dave, Eve.
+- **Users**: Alice, Carol, Dave.
+- **Service role (interim)**: A service is a specialized user role. Until a dedicated service section is specified, services are treated as users in examples.
 - **Ark Service Provider (ASP)**: Steve.
+- **In Ark Lightning Service Provider (IaLSP)**: Bob.
+- **In Ark On-Chain Swap Service Provider (IaOCSSP)**: Eve.
 - **External Liquidity Provider (XLP)**: Victoria.
+- **External Users**: Xavier.
 
 ### Example 1.0 – Alice, Bob, Carol, Dave, and Eve create a VTXO tree
 
 This example has been moved to:
 
-- [examples/example-1.0-create-frist-vtxo-tree.md](examples/example-1.0-create-frist-vtxo-tree.md)
+- [examples/example-1.0-create-first-vtxo-tree.md](examples/example-1.0-create-first-vtxo-tree.md)
 
 ### Example 1.1 – Alice pays Bob
 
