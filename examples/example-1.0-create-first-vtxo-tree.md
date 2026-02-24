@@ -116,9 +116,13 @@ sequenceDiagram
 - **Transport:** Nostr event `kind:150`, tags `["t","new_round_vtxo_tree_proposal"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
 - **Audience (scenario):** Alice, Bob, Carol, Dave, Eve
 - **Preconditions (scenario):** Join collection complete for this round.
-- **Scenario payload values:** `vtxo_tree=<tree_r_2026_02_24_001>`, `forfeit_tree=<forfeit_r_2026_02_24_001>`, `recycle_transaction=<recycle_r_2026_02_24_001>`
-- **Expected outcome:** Users can verify exact transactions to be signed.
-- **Failure/timeout branch:** If any required transaction is invalid or missing, users reject the proposal and do not send `new_round_vtxo_tree_accept`.
+- **Scenario payload values:**
+  - `root_tx=<base64_root_tx_r_2026_02_24_001>`
+  - `vtxo_tree=[<base64_vtxo_tx_0>, <base64_vtxo_tx_1>, ...]`
+  - `forfeit_tree=[<base64_forfeit_tx_0>, <base64_forfeit_tx_1>, ...]`
+  - `recycle={ "unilateral_tx": <base64_recycle_unilateral_tx>, "cooperative_tx": <base64_recycle_cooperative_tx> }`
+- **Expected outcome:** Users can verify the full proposed transaction set and derive txids from decoded transactions.
+- **Failure/timeout branch:** If any required transaction is invalid, missing, or inconsistent, users reject the proposal and do not send `new_round_vtxo_tree_accept`.
 - **Spec refs:** [15-open-ark.md §7.1.1](../15-open-ark.md#711-initiated-state), [nip-150.md `new_round_vtxo_tree_proposal`](../nip-150.md#new_round_vtxo_tree_proposal)
 
 ### Step 4 -- [`new_round_vtxo_tree_accept`](../nip-150.md#new_round_vtxo_tree_accept) (Phase: Tree Proposal)
