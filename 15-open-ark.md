@@ -216,6 +216,7 @@ This state starts with the ASP broadcasting the `new_round_vtxo_tree_proposal` m
 The normative payload format and validation rules for this message are specified in NIP-150 (`new_round_vtxo_tree_proposal`).
 
 Users verify these transactions and return their signatures on the new vtxo-tree using the `new_round_vtxo_tree_accept` message.
+The normative payload format and validation rules for `new_round_vtxo_tree_accept` are specified in NIP-150 (`new_round_vtxo_tree_accept`).
 Once all users have signed the new vtxo-tree, the initialization moves to the start preparation substate.
 
 ##### Start Preparation state
