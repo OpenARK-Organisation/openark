@@ -194,9 +194,14 @@ This substate starts with the ASP announces a new round using the `new_round_ini
 
 `new_round_initiate` carries `closing_block` and `recycled_block` in its payload. This event id is the round thread root; subsequent lifecycle messages in this round MUST reference it using an `e` tag.
 
-They do so by responding with a `new_round_join` message, containing:
-- funds to onboard
-- funds to offboard
+They do so by responding with a `new_round_join` message containing:
+- `onboard`: list of outpoints (`txid:vout`) to include
+- `offboard`: list of destination addresses
+- `keys`: per-round `user_pubkey` and `agent_pubkey`
+- optional `address_of_last_resort`
+
+The message MUST reference the round thread root using tag `e=<new_round_initiate_event_id>`.
+The message MUST NOT include amount fields; amounts are validated from referenced transactions and later proposal data.
 
 The default is that all funds in the previous round are onboarded. If several users need to agree to on-board funds, perhaps because of  
 a shared vtxo, then all users MUST agree to onboard for the vtxo to be included. 
