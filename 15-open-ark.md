@@ -192,7 +192,7 @@ The goal of this substate is to invite users to join the round.
 
 This substate starts with the ASP announces a new round using the `new_round_initiate` message, inviting users to join.
 
-`new_round_initiate` carries `closing_block` and `recycled_block` in its payload. This event id is the round thread root; subsequent lifecycle messages in this round MUST reference it using an `e` tag.
+`new_round_initiate` carries `closing_block`, `recycled_block`, and `leaf_timeout` in its payload. This event id is the round thread root; subsequent lifecycle messages in this round MUST reference it using an `e` tag.
 
 They do so by responding with a `new_round_join` message containing:
 - `onboard`: list of outpoints (`txid:vout`) to include
@@ -210,27 +210,173 @@ The ASP then waits for either the min_timeout is reached and all users that are 
 Once this happens, the initialization moves to the tree proposal substate.
 
 ##### Tree Proposal state
-The goal of this substate is to finalize the vtxo-tree including the users signatures. 
+The goal of this substate is to finalize the vtxo-tree using PSBT-native signing.
 
 This state starts with the ASP broadcasting the `new_round_vtxo_tree_proposal` message.
 The normative payload format and validation rules for this message are specified in NIP-150 (`new_round_vtxo_tree_proposal`).
 
-Users verify these transactions and return their signatures on the new vtxo-tree using the `new_round_vtxo_tree_accept` message.
+The proposal contains PSBT artifacts:
+- `root_psbt` (unsigned by users at this stage)
+- `vtxo_tree_psbts` (prepared and ASP-signed where applicable)
+- `forfeit_psbts` (prepared and ASP-signed where applicable)
+- `recycle_psbt` (prepared and ASP-signed where applicable)
+
+Users verify these PSBTs and respond with `new_round_vtxo_tree_accept` by returning user-updated PSBTs for their required tree/root signing participation.
 The normative payload format and validation rules for `new_round_vtxo_tree_accept` are specified in NIP-150 (`new_round_vtxo_tree_accept`).
-Once all users have signed the new vtxo-tree, the initialization moves to the start preparation substate.
+Once all required user Step 4 PSBT contributions are collected, the initialization moves to the start preparation substate.
+
+##### Fee policy for tree construction and unilateral exit
+
+The round-construction fee policy is as follows:
+
+- The ASP is the fee payer for constructing and broadcasting the round vtxo-root and associated tree construction transactions.
+- The ASP MUST target a minimum construction feerate of 1 sat/vB and MUST fund for a worst-case signed vbytes estimate for the transaction set.
+- The ASP MAY fund this fee budget by adding one or more ASP-owned fee inputs to the construction set.
+- User onboarding allocations in the proposed tree MUST be preserved as declared for the round and MUST NOT be implicitly reduced by construction-fee deduction unless explicitly negotiated by policy.
+- Any excess from ASP fee inputs SHOULD return to an ASP-controlled change output.
+
+For unilateral exits:
+
+- The participant initiating unilateral on-chain exit is responsible for the confirmation fee strategy of that exit path.
+- The exiting participant MAY fee-bump (for example via RBF or CPFP where applicable) to achieve desired confirmation latency.
+
+
+##### Deterministic branch and leaf construction
+
+This subsection defines how root, branch, and leaf outputs are constructed and how participant key sets are reduced deterministically from root to leaves.
+
+###### Node and transaction roles
+
+- Root transaction output: top commitment output for the round; includes the full participant key set.
+- Branch transaction output: intermediate commitment output carrying a reduced participant key set.
+- Leaf transaction output: final user-facing VTXO output for one participant.
+
+###### Spend policy templates
+
+Two script families are used:
+
+- Branch/root family: `subset_keys + S | S + t=#recycled_block#`
+- Leaf family: `U + S | U + dt=#leaf_timeout#`
+
+Where `S` is the ASP key for the round, `subset_keys` is the deterministic participant subset for that node, and `U` is the user bound to that leaf.
+
+###### Root output construction
+
+The root output is created with:
+
+1. `value_sats`: full round value committed to the tree.
+2. `scriptPubKey`: full participant set lock, for example `A + B + C + D + E + S | S + t=#recycled_block#`.
+3. Deterministic `vout` placement according to root output ordering policy.
+
+The root key set MUST include all participants accepted in the round for this tree.
+
+###### Branch output construction
+
+Each branch output is created from its parent by deterministic partitioning:
+
+1. Derive child participant subsets from the parent subset using stable participant order.
+2. Assign child subsets to deterministic left/right positions.
+3. Build child scripts as `child_subset + S | S + t=#recycled_block#`.
+4. Assign child output values deterministically from subtree allocations.
+
+Branch output ordering:
+
+1. Left child commitment.
+2. Right child commitment.
+3. Optional policy/change outputs in fixed order.
+
+If only one non-empty child subset remains, compaction is deterministic and no empty placeholder output is created.
+
+###### Leaf output construction
+
+When a branch reaches terminal granularity, each user leaf output is created with:
+
+1. User allocation `value_sats`.
+2. Leaf script `U + S | U + dt=#leaf_timeout#`.
+3. Deterministic `vout` placement in the leaf transaction.
+
+Leaf output ordering:
+
+1. User leaves in participant-index order.
+2. Policy/service outputs in fixed order.
+3. Change output last (if present).
+
+User allocations MUST follow round allocation policy. Construction-fee funding from ASP shards MUST NOT implicitly alter user allocation amounts.
+
+###### Worked example shape
+
+For participants `{A,B,C,D,E}`:
+
+1. Root: `A+B+C+D+E+S | S+t=#recycled_block#`
+2. Level 1 split:
+- Branch L: `A+B+C+S | S+t=#recycled_block#`
+- Branch R: `D+E+S | S+t=#recycled_block#`
+3. Level 2 split:
+- Branch L -> Leaf C + Branch AB
+  - Leaf C: `C+S | C+dt=#leaf_timeout#`
+  - Branch AB: `A+B+S | S+t=#recycled_block#`
+- Branch R -> Leaf D + Leaf E
+  - Leaf D: `D+S | D+dt=#leaf_timeout#`
+  - Leaf E: `E+S | E+dt=#leaf_timeout#`
+4. Level 3 split:
+- Branch AB -> Leaf A + Leaf B
+  - Leaf A: `A+S | A+dt=#leaf_timeout#`
+  - Leaf B: `B+S | B+dt=#leaf_timeout#`
+
+###### Binding and timeout rules
+
+- For branch/root scripts, `t` is absolute and MUST equal round `recycled_block`.
+- For leaf scripts, `dt` is relative and MUST equal configured leaf timeout policy.
+- Key bindings MUST be deterministic and derivable from round participant ordering and partition rules.
+
+###### Validation requirements
+
+Proposal receivers MUST verify:
+
+1. Root contains the full participant set for the round.
+2. Each branch key set is a valid deterministic subset of its parent.
+3. Branch scripts use `... + S | S + t=#recycled_block#`.
+4. Leaf scripts use `U + S | U + dt=#leaf_timeout#`.
+5. Output values, ordering, and parent/child outpoint references (`txid:vout`) are consistent.
+6. Any mismatch in key partition, timeout value/type (`t` vs `dt`), or ordering causes rejection.
+
+###### Funding shard interaction
+
+- ASP funding shards fund construction fees only.
+- Tree script construction and key partitioning are independent of shard source.
+- Shard inputs and ASP change are verifiable from decoded transactions; no additional Nostr payload fields are required.
+
+##### PSBT Signing Pipeline (Step 3-7)
+
+This subsection defines round initialization using PSBT-native signing flow.
+Lifecycle semantics are defined here; wire payload schemas are normative in NIP-150.
+
+| Step | Sender | Message | Artifact | Signature State |
+|---|---|---|---|---|
+| 3 | ASP | `new_round_vtxo_tree_proposal` | `root_psbt`, `vtxo_tree_psbts[]`, `forfeit_psbts[]`, `recycle_psbt` | `root_psbt` unsigned by users; non-root/recycle/forfeit PSBTs prepared and ASP-signed where applicable |
+| 4 | User | `new_round_vtxo_tree_accept` | user-updated PSBTs for tree/root participation | user adds signatures directly inside PSBTs (no detached signatures) |
+| 5 | ASP | `new_round_prepare_start` | trigger/binding only | no semantic payload |
+| 6 | User | `new_round_start_prepared` | user-updated PSBTs for forfeit/recycle participation | user adds signatures directly inside PSBTs (no detached signatures) |
+| 7 | ASP | `new_round_start` | final extracted `round_tx` (base64 tx, not PSBT) | ASP merges, finalizes root PSBT, broadcasts root tx |
+
+Rules:
+- Detached signature maps are not used in this flow.
+- User signatures MUST be transported inside returned PSBT artifacts.
+- All Step 3-7 messages MUST reference the same round thread root.
+- Users MUST validate PSBT inputs/outputs/scripts/amounts/locktimes before signing.
+- `new_round_start` carries `round_tx` (final tx), not PSBT.
 
 ##### Start Preparation state
-The goal of this substate is to fund the round.
+The goal of this substate is to fund and finalize the round.
 
 This state starts with the ASP broadcasting the `new_round_prepare_start` message.
 The normative tag requirements for this message are specified in NIP-150 (`new_round_prepare_start`); the message is a trigger/binding event and carries no semantic content payload (`content` is empty).
 
-After which users respond with a `new_round_start_prepared` where they provide signatures keyed by outpoint (`txid:vout`) for:
-- the forfeit transactions
-- the cooperative recycling transaction
-- any onboarding transactions. 
+After this, users respond with `new_round_start_prepared` by returning user-updated PSBT artifacts for:
+- `forfeit_psbts`
+- `recycle_psbt`
 
-When all of these are signed, the ASP will sign the vtxo-root and broadcast it, ending the initialization.
+When all required Step 6 PSBT contributions are collected, the ASP finalizes the root PSBT, extracts/broadcasts the root transaction, and ends initialization.
 
 ##### Aborting the initialization
 
@@ -238,9 +384,10 @@ A user can at any time and for any reason abort the onboarding and instead choos
 a `new_round_abort` message. In this case, the initialization is aborted for that user, and their funds MUST be handled via the recycle path (or carried forward into the next round, if applicable).
 
 #### 7.1.2 Started state
-This state is entered when the VTXO tree has been finalized and the round vtxo-root is anchored on-chain and the ASP broadcasts the `new_round_start` message.
+This state is entered when the VTXO tree has been finalized and the round vtxo-root is anchored on-chain and the ASP broadcasts the `new_round_start` message containing `round_tx` (base64-encoded signed root transaction).
 
 Here users can send and receive off-chain HTLCs.
+Participants derive and verify the txid from `round_tx` before treating the round as active.
 
 #### 7.1.3 Closed state
 This state is entered when the closing block has been found and the ASP broadcasts the `round_closed` message.
@@ -662,25 +809,18 @@ sequenceDiagram
    4. Dave is offline and does not respond.
    5. Eve transfers all existing capital and onboards **0.4 BTC**.
 7. After the timeout, Steve issues `new_round_vtxo_tree_proposal`, including:
-   1. A new round transaction containing:
-       1. A new VTXO root output, locked with A+B+C+E+S | S + T=400.
-       2. An offboarding output for Bob
-       3. A forfeit root output.
-       4. A funding input for Eve.
-       5. A funding input for Steve.
-   2. Forfeit control transaction.
-   3. Forfeit transactions for the capital that is being transferred.
-   4. A recycle transaction for the round containing:
-       1. An output with Dave's capital based on his recycle address.
-       2. An output to Steve with the rest of the capital.
+   1. `root_psbt` for the new round root (user signatures not yet added).
+   2. `vtxo_tree_psbts` for the non-root tree transactions.
+   3. `forfeit_psbts` for transfer/forfeit enforcement paths.
+   4. `recycle_psbt` for round recycle handling.
 8. Alice, Bob, Carol, and Eve verify the proposal and respond with `new_round_vtxo_tree_accept`.
-    - it contains the signatures for the respective nodes in the vtxo-tree.
-    - every user is now assured that the expected funds are in this vtxo-tree.
-9. Steve requests final signatures via `new_round_prepare_start`.
+    - it contains user-updated PSBT artifacts for required tree/root signing participation.
+    - every user is now assured that the expected funds are represented in the proposed PSBT set.
+9. Steve requests final Step 6 PSBT contributions via `new_round_prepare_start`.
 10. Alice, Bob, Carol, and Eve respond with `new_round_start_prepared`.
-    - every user verifies that he has received the signatures for the vtxo-tree.
-    - it contains signatures for the forfeit, funding, and cooperative recycle transactions. 
-11. Steve broadcasts the new round root and issues `new_round_start`.
+    - every user verifies the forfeit/recycle PSBT artifacts and adds required Step 6 signatures inside PSBT fields.
+    - it contains user-updated forfeit PSBTs and user-updated recycle PSBT. 
+11. Steve finalizes the root PSBT, broadcasts the new round root transaction, and issues `new_round_start`.
 12. When Dave later comes online, he issues `recycle_accept`.
     - it contains signatures for the cooperative recycle transaction.
 13. Steve broadcasts the cooperative recycle transaction, allowing Dave to recover his funds.
@@ -839,16 +979,15 @@ Steve also constructs:
 - **Forfeit leaf transactions**: each maps a specific Round 1 VTXO series to its successor commitment in Round 2.
 - **Recycle transaction**: contains an output for Dave's capital (based on his recycle address) and an output returning the remaining capital to Steve.
 
-Alice, Bob, Carol, and Eve verify the proposal and return their signatures via `new_round_vtxo_tree_accept`.
+Alice, Bob, Carol, and Eve verify the proposal and return user-updated PSBTs via `new_round_vtxo_tree_accept`.
 
 ##### Phase 4: Round 2 Initiated -- Start Preparation
 
-Steve sends `new_round_prepare_start`. Each active user responds with `new_round_start_prepared`, signing by outpoint (`txid:vout`):
-- The **forfeit transactions** (binding their old Round 1 VTXOs to Round 2).
-- The **cooperative recycle transaction** (enabling Dave's fund recovery).
-- Any **onboarding transactions** (Eve's new input).
+Steve sends `new_round_prepare_start`. Each active user responds with `new_round_start_prepared`, returning user-updated PSBT artifacts for:
+- The **forfeit PSBTs** (binding their old Round 1 VTXOs to Round 2).
+- The **cooperative recycle PSBT** (enabling Dave's fund recovery).
 
-Once all signatures are collected, Steve signs and broadcasts the new vtxo-root on-chain.
+Once all required Step 6 PSBT contributions are collected, Steve finalizes and broadcasts the new vtxo-root transaction on-chain.
 
 ##### Phase 5: Round 2 Started -- Round Activation
 
@@ -900,14 +1039,14 @@ From the information collected in the previous round, a new vtxo-tree is constru
 
 Phase 3.1. – Tree agreement.
 Trigger: a proposal is sent out.
-Goal: Collect the signatures for the vtxo-tree, excluding the vtxo-root. This assures everybody that has vtxo-leaf in the new vtxo-tree that they will be able to do a unilateral exit once the root is deposited.
+Goal: Collect Step 4 user PSBT contributions for the vtxo-tree, excluding the vtxo-root finalization. This assures everybody that has a vtxo-leaf in the new vtxo-tree that they can do a unilateral exit once the root is deposited.
 
 Phase 3.2. – Transfer agreement.
 Trigger: the vtxo-tree is finalized.
-Goal: Collect the signatures for the transfer of assets from the old vtxo-tree to the new vtxo-tree, this includes:
- - the forfeit transactions, 
- - funding transactions, 
- - recycle transactions.
+Goal: Collect Step 6 user PSBT contributions for transfer artifacts from the old vtxo-tree to the new vtxo-tree, including:
+ - forfeit PSBTs,
+ - recycle PSBT,
+ - any required funding-related PSBT participation defined by policy.
 
 Phase 4 – Deposit root
 Trigger: All the signatures have been collected.
