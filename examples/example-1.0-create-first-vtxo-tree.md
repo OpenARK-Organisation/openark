@@ -78,7 +78,7 @@ sequenceDiagram
 
     Note over S,R: Round Activation phase
     Note over S: S signs and broadcasts VTXO root on-chain
-    S->>R: new_round_start (t=new_round_start, v=1.0.0, e=initiate_id, round_txid)
+    S->>R: new_round_start (t=new_round_start, v=1.0.0, e=initiate_id, round_tx)
     R-->>A: round started
     R-->>B: round started
     R-->>C: round started
@@ -177,9 +177,9 @@ sequenceDiagram
 - **Transport:** Nostr event `kind:150`, tags `["t","new_round_start"]`, `["v","1.0.0"]`, `["e","<new_round_initiate_event_id>"]`
 - **Audience (scenario):** Alice, Bob, Carol, Dave, Eve
 - **Preconditions (scenario):** VTXO root signed and broadcast on-chain by ASP.
-- **Scenario payload values:** `round_txid="txid_root_r_2026_02_24_001"`
-- **Expected outcome:** Round is officially active for off-chain operations.
-- **Failure/timeout branch:** If `round_txid` is missing, invalid, or not observed on-chain, participants treat the round as not active and retain exit/recycle safety behavior.
+- **Scenario payload values:** `round_tx=<base64_signed_root_tx_r_2026_02_24_001>`
+- **Expected outcome:** Users decode `round_tx`, derive the root txid, verify anchoring, and treat the round as active for off-chain operations.
+- **Failure/timeout branch:** If `round_tx` is missing, invalid, not decodable, or the derived tx is not observed on-chain, participants treat the round as not active and retain exit/recycle safety behavior.
 - **Spec refs:** [15-open-ark.md §7.1.1](../15-open-ark.md#711-initiated-state), [15-open-ark.md §7.1.2](../15-open-ark.md#712-started-state), [nip-150.md `new_round_start`](../nip-150.md#new_round_start)
 
 ### End State
